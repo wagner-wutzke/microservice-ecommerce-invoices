@@ -7,41 +7,28 @@ import net.wowdev.ecommerce.domain.events.InvoiceFailedEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class InvoiceProducer {
-    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Value("${app.kafka.invoices-topic}")
-    private String topic;
+  private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public void publishAfterCommit(final InvoiceCompletedEvent event) {
-        publishAfterCommit(event, event.ordetDTO().getId().toString());
-    }
+  @Value("${app.kafka.invoices-topic}")
+  private String topic;
 
-    public void publishAfterCommit(final InvoiceFailedEvent event) {
-        publishAfterCommit(event, event.ordetDTO().getId().toString());
-    }
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  public void publish(final InvoiceCompletedEvent event) {
+    log.debug(">> Publishing InvoiceCompletedEvent: {}", event.eventId());
+    kafkaTemplate.send(topic, event.eventId().toString(), event);
+  }
 
-    private void publishAfterCommit(final Object event, final String key) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    send(event, key);
-                }
-            });
-            return;
-        }
-        send(event, key);
-    }
-
-    private void send(final Object event, final String key) {
-        log.debug("Publishing invoice event with key {}", key);
-        kafkaTemplate.send(topic, key, event);
-    }
+  @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  public void publish(final InvoiceFailedEvent event) {
+    log.debug(">> Publishing InvoiceFailedEvent: {}", event.eventId());
+    kafkaTemplate.send(topic, event.eventId().toString(), event);
+  }
 }

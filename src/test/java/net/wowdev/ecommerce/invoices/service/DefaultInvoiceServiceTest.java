@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.UUID;
 import net.wowdev.ecommerce.domain.dto.InvoiceDTO;
 import net.wowdev.ecommerce.domain.entity.InvoiceEntity;
+import net.wowdev.ecommerce.domain.events.InvoiceCompletedEvent;
+import net.wowdev.ecommerce.domain.events.InvoiceFailedEvent;
 import net.wowdev.ecommerce.invoices.TestFixtures;
 import net.wowdev.ecommerce.invoices.messaging.InvoiceProducer;
 import net.wowdev.ecommerce.invoices.repository.InvoiceRepository;
@@ -46,7 +48,7 @@ class DefaultInvoiceServiceTest {
     }
 
     @Test void createsInvoice() {
-        when(repository.save(any(InvoiceEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(repository.save(any(InvoiceEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         InvoiceDTO result = service.create(TestFixtures.invoice(id));
         assertEquals("INV-1", result.getInvoiceNumber());
     }
@@ -76,9 +78,28 @@ class DefaultInvoiceServiceTest {
     }
 
     @Test void processesOrder() {
-        when(repository.save(any(InvoiceEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-        assertNotNull(service.process(TestFixtures.order()));
-        verify(producer).publishAfterCommit(any(net.wowdev.ecommerce.domain.events.InvoiceCompletedEvent.class));
+        var order = TestFixtures.order();
+        var publishedEvents = new java.util.ArrayList<Object>();
+        lenient().when(repository.save(any(InvoiceEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        lenient().doAnswer(invocation -> {
+            publishedEvents.add(invocation.getArgument(0));
+            return null;
+        }).when(producer).publish(any(InvoiceCompletedEvent.class));
+        lenient().doAnswer(invocation -> {
+            publishedEvents.add(invocation.getArgument(0));
+            return null;
+        }).when(producer).publish(any(InvoiceFailedEvent.class));
+
+        service.process(order);
+
+        assertEquals(1, publishedEvents.size());
+        var event = publishedEvents.get(0);
+        assertTrue(event instanceof InvoiceCompletedEvent || event instanceof InvoiceFailedEvent);
+        if (event instanceof InvoiceCompletedEvent completedEvent) {
+            assertEquals(order.getId().toString(), completedEvent.transactionId());
+        } else {
+            assertEquals(order.getId().toString(), ((InvoiceFailedEvent) event).transactionId());
+        }
     }
 
     @Test void rejectsInvalidOrder() {

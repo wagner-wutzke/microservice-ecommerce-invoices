@@ -1,6 +1,7 @@
 package net.wowdev.ecommerce.invoices.messaging;
 
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -11,6 +12,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 class InvoiceProducerTest {
     private KafkaTemplate<String, Object> template;
@@ -25,25 +28,25 @@ class InvoiceProducerTest {
     }
 
     @Test void publishesCompletedImmediatelyWithoutTransaction() {
-        producer.publishAfterCommit(completed);
-        verify(template).send("invoices-topic.v1", completed.ordetDTO().getId().toString(), completed);
+        producer.publish(completed);
+        verify(template).send("invoices-topic.v1", completed.eventId().toString(), completed);
     }
 
     @Test void publishesFailedImmediatelyWithoutTransaction() {
         var event = new InvoiceFailedEvent(UUID.randomUUID(), "tx", TestFixtures.order(), Instant.now(), "bad", "test");
-        producer.publishAfterCommit(event);
-        verify(template).send("invoices-topic.v1", event.ordetDTO().getId().toString(), event);
+        producer.publish(event);
+        verify(template).send("invoices-topic.v1", event.eventId().toString(), event);
     }
 
-    @Test void publishesAfterTransactionCommit() {
-        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
-        try {
-            producer.publishAfterCommit(completed);
-            org.springframework.transaction.support.TransactionSynchronizationManager
-                    .getSynchronizations().get(0).afterCommit();
-            verify(template).send("invoices-topic.v1", completed.ordetDTO().getId().toString(), completed);
-        } finally {
-            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
-        }
+    @Test void publishesAfterTransactionCommit() throws NoSuchMethodException {
+        var completedListener = InvoiceProducer.class
+                .getMethod("publish", InvoiceCompletedEvent.class)
+                .getAnnotation(TransactionalEventListener.class);
+        var failedListener = InvoiceProducer.class
+                .getMethod("publish", InvoiceFailedEvent.class)
+                .getAnnotation(TransactionalEventListener.class);
+
+        assertEquals(TransactionPhase.AFTER_COMMIT, completedListener.phase());
+        assertEquals(TransactionPhase.AFTER_COMMIT, failedListener.phase());
     }
 }
