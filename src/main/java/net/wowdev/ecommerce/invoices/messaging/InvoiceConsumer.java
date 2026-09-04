@@ -2,10 +2,8 @@ package net.wowdev.ecommerce.invoices.messaging;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.wowdev.ecommerce.domain.events.OrderProcessingFailedEvent;
 import net.wowdev.ecommerce.domain.events.PaymentCompletedEvent;
 import net.wowdev.ecommerce.domain.events.ShippingFailedEvent;
-import net.wowdev.ecommerce.domain.events.ShippingFaileddEvent;
 import net.wowdev.ecommerce.invoices.service.InvoiceService;
 import org.springframework.kafka.annotation.KafkaHandler;
 import org.springframework.kafka.annotation.KafkaListener;

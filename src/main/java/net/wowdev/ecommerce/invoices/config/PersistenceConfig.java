@@ -7,5 +7,4 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @Configuration
 @EnableJpaAuditing
 @EntityScan(basePackages = "net.wowdev.ecommerce.domain.entity")
-public class PersistenceConfig {
-}
+public class PersistenceConfig {}
