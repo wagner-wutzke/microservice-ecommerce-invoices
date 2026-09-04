@@ -1,0 +1,53 @@
+server:
+  port: ${APP_PORT:9500}
+spring:
+  application:
+    name: invoices-service
+  datasource:
+    url: jdbc:h2:file:./data/invoices-db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate.ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    defer-datasource-initialization: true
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:invoices-events-group.v1}
+      properties:
+        spring.json.trusted.packages: "net.wowdev.ecommerce.domain.events"
+    producer:
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+        linger.ms: 0
+
+app:
+  kafka:
+    payments-topic: ${KAFKA_PAYMENTS_TOPIC:payments-topic.v1}
+    orders-topic: ${KAFKA_ORDERS_TOPIC:orders-topic.v1}
+    customers-topic: ${KAFKA_CUSTOMERS_TOPIC:customers-topic.v1}
+    inventory-topic: ${KAFKA_INVENTORY_TOPIC:inventory-topic.v1}
+    invoices-topic: ${KAFKA_INVOICES_TOPIC:invoices-topic.v1}
+    shipments-topic: ${KAFKA_SHIPMENTS_TOPIC:shipments-topic.v1}
+
+logging:
+  level:
+    org.hibernate.orm.jdbc.bind: INFO
+    org.apache.kafka.common: ERROR
+    org.apache.kafka.clients: ERROR
+    net.wowdev.ecommerce.orders: DEBUG
+    net.wowdev.ecommerce.customers: DEBUG
+    net.wowdev.ecommerce.inventory: DEBUG
+    net.wowdev.ecommerce.payments: DEBUG
+    net.wowdev.ecommerce.datareplication: DEBUG
