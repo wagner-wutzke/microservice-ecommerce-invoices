@@ -1,7 +1,7 @@
 package net.wowdev.ecommerce.invoices.messaging;
 
-import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 import java.util.UUID;

@@ -20,5 +20,4 @@ public interface InvoiceService {
   void process(OrderDTO order);
 
   void compensate(OrderDTO order, String reason);
-
 }

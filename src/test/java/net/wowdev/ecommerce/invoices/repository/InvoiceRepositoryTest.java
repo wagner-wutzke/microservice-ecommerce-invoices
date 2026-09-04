@@ -13,11 +13,13 @@ import org.springframework.context.annotation.Import;
 @DataJpaTest
 @Import(PersistenceConfig.class)
 class InvoiceRepositoryTest {
-    @Autowired private InvoiceRepository repository;
+  @Autowired private InvoiceRepository repository;
 
-    @Test void savesAndReadsInvoice() {
-        InvoiceEntity saved = repository.saveAndFlush(
-                net.wowdev.ecommerce.domain.mapper.InvoiceMapper.toEntity(TestFixtures.invoice(null)));
-        assertTrue(repository.findById(saved.getId()).isPresent());
-    }
+  @Test
+  void savesAndReadsInvoice() {
+    InvoiceEntity saved =
+        repository.saveAndFlush(
+            net.wowdev.ecommerce.domain.mapper.InvoiceMapper.toEntity(TestFixtures.invoice(null)));
+    assertTrue(repository.findById(saved.getId()).isPresent());
+  }
 }
