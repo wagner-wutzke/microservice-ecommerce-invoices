@@ -1,5 +1,5 @@
 server:
-  port: ${APP_PORT:9500}
+  port: ${APP_PORT:9040}
 spring:
   application:
     name: invoices-service

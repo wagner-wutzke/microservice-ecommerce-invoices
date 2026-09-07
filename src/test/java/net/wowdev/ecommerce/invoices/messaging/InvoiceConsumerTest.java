@@ -5,7 +5,7 @@ import static org.mockito.Mockito.*;
 import java.time.Instant;
 import java.util.UUID;
 import net.wowdev.ecommerce.domain.events.PaymentCompletedEvent;
-import net.wowdev.ecommerce.domain.events.ShippingFailedEvent;
+import net.wowdev.ecommerce.domain.events.ShipmentFailedEvent;
 import net.wowdev.ecommerce.invoices.TestFixtures;
 import net.wowdev.ecommerce.invoices.service.InvoiceService;
 import org.junit.jupiter.api.Test;
@@ -25,10 +25,10 @@ class InvoiceConsumerTest {
   }
 
   @Test
-  void compensatesFailedShippingAndIgnoresUnknownEvents() {
+  void compensatesFailedShipmentAndIgnoresUnknownEvents() {
     var order = TestFixtures.order();
     consumer.handleShippingFailed(
-        new ShippingFailedEvent(UUID.randomUUID(), "tx", order, "failed", Instant.now(), "orders"));
+        new ShipmentFailedEvent(UUID.randomUUID(), "tx", order, "failed", Instant.now(), "orders"));
     verify(service).compensate(order, "failed");
 
     clearInvocations(service);
