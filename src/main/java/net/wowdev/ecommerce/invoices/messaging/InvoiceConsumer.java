@@ -33,9 +33,9 @@ public class InvoiceConsumer {
   }
 
   @KafkaHandler
-  public void handleShippingFailed(final ShipmentFailedEvent event) {
+  public void handleShipmentFailed(final ShipmentFailedEvent event) {
     log.debug(
-        ">> Processing ShippingFailedEvent event sent from {}. Event id {}",
+        ">> Processing ShipmentFailedEvent event sent from {}. Event id {}",
         event.origin(),
         event.eventId());
     invoiceService.compensate(event.orderDTO(), event.reason());

@@ -27,7 +27,7 @@ class InvoiceConsumerTest {
   @Test
   void compensatesFailedShipmentAndIgnoresUnknownEvents() {
     var order = TestFixtures.order();
-    consumer.handleShippingFailed(
+    consumer.handleShipmentFailed(
         new ShipmentFailedEvent(UUID.randomUUID(), "tx", order, "failed", Instant.now(), "orders"));
     verify(service).compensate(order, "failed");
 

@@ -47,8 +47,7 @@ public class DefaultInvoiceService implements InvoiceService {
   public InvoiceDTO create(final InvoiceDTO invoice) {
     validate(invoice);
     final InvoiceEntity entity = InvoiceMapper.toEntity(invoice);
-    final InvoiceDTO saved = InvoiceMapper.toDto(repository.save(entity));
-    return saved;
+    return InvoiceMapper.toDto(repository.save(entity));
   }
 
   @Override
@@ -95,7 +94,7 @@ public class DefaultInvoiceService implements InvoiceService {
 
     try {
       if (processFails()) {
-        throw new RuntimeException("Invoice processing failed: Document could not be generated.");
+        throw new RuntimeException("Document could not be generated.");
       }
       invoice = create(invoice);
       producer.publish(
@@ -149,7 +148,8 @@ public class DefaultInvoiceService implements InvoiceService {
   private boolean processFails() {
     int second = Instant.now().atZone(ZoneId.systemDefault()).getSecond();
     boolean failed = second % 3 == 0;
-    log.debug(">> Runtime condition for failing process: [{} % 2 == 0 => {}]", second, failed);
+    log.debug(
+        ">> Runtime condition for simulating process failure: [{} % 3 == 0 => {}]", second, failed);
     return failed;
   }
 }
