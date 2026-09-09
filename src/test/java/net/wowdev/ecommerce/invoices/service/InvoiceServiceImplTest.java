@@ -23,10 +23,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
-class DefaultInvoiceServiceTest {
+class InvoiceServiceImplTest {
   @Mock InvoiceRepository repository;
   @Mock InvoiceProducer producer;
-  @InjectMocks DefaultInvoiceService service;
+  @InjectMocks
+  InvoiceServiceImpl service;
   private UUID id;
 
   @BeforeEach

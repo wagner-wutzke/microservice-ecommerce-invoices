@@ -1,7 +1,6 @@
 package net.wowdev.ecommerce.invoices.service;
 
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +12,7 @@ import net.wowdev.ecommerce.domain.events.InvoiceFailedEvent;
 import net.wowdev.ecommerce.domain.mapper.InvoiceMapper;
 import net.wowdev.ecommerce.invoices.messaging.InvoiceProducer;
 import net.wowdev.ecommerce.invoices.repository.InvoiceRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,11 +21,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class DefaultInvoiceService implements InvoiceService {
+public class InvoiceServiceImpl implements InvoiceService {
 
   private static final String ORIGIN_SERVICE = "INVOICES-SERVICE";
   private final InvoiceRepository repository;
   private final InvoiceProducer producer;
+
+  @Value(value = "${app.service.invoices.failing}")
+  private boolean serviceIsFailing;
 
   @Override
   @Transactional(readOnly = true)
@@ -93,28 +96,15 @@ public class DefaultInvoiceService implements InvoiceService {
             null);
 
     try {
-      if (processFails()) {
+      if (serviceIsFailing()) {
         throw new RuntimeException("Document could not be generated.");
       }
       invoice = create(invoice);
-      producer.publish(
-          new InvoiceCompletedEvent(
-              UUID.randomUUID(),
-              orderDTO.getId().toString(),
-              orderDTO,
-              Instant.now(),
-              ORIGIN_SERVICE));
+      publishInvoiceCompletedEvent(orderDTO);
       log.debug(">> Created invoice {} for order {}", invoice.getId(), orderDTO.getId());
     } catch (RuntimeException e) {
       log.debug(">> Invoice generation for order {} failed.", orderDTO.getId());
-      producer.publish(
-          new InvoiceFailedEvent(
-              UUID.randomUUID(),
-              orderDTO.getId().toString(),
-              orderDTO,
-              Instant.now(),
-              "Invoice generation failed: " + e.getMessage(),
-              ORIGIN_SERVICE));
+      publishInvoiceFailedEvent(orderDTO, e.getMessage());
     }
   }
 
@@ -125,14 +115,7 @@ public class DefaultInvoiceService implements InvoiceService {
 
     repository.deleteByOrderId(orderDTO.getId());
 
-    producer.publish(
-        new InvoiceFailedEvent(
-            UUID.randomUUID(),
-            orderDTO.getId().toString(),
-            orderDTO,
-            Instant.now(),
-            reason,
-            ORIGIN_SERVICE));
+    publishInvoiceFailedEvent(orderDTO, reason);
   }
 
   private void validate(final InvoiceDTO invoice) {
@@ -145,11 +128,36 @@ public class DefaultInvoiceService implements InvoiceService {
     }
   }
 
-  private boolean processFails() {
-    int second = Instant.now().atZone(ZoneId.systemDefault()).getSecond();
-    boolean failed = second % 3 == 0;
-    log.debug(
-        ">> Runtime condition for simulating process failure: [{} % 3 == 0 => {}]", second, failed);
-    return failed;
+  private void publishInvoiceCompletedEvent(OrderDTO orderDTO) {
+    producer.publish(
+        new InvoiceCompletedEvent(
+            UUID.randomUUID(),
+            orderDTO.getId().toString(),
+            orderDTO,
+            Instant.now(),
+            ORIGIN_SERVICE));
+  }
+
+  private void publishInvoiceFailedEvent(OrderDTO orderDTO, String reason) {
+    producer.publish(
+        new InvoiceFailedEvent(
+            UUID.randomUUID(),
+            orderDTO.getId().toString(),
+            orderDTO,
+            Instant.now(),
+            "Invoice generation failed: " + reason,
+            ORIGIN_SERVICE));
+  }
+
+  private boolean serviceIsFailing() {
+    if (this.serviceIsFailing) {
+      log.debug(
+          """
+          >> Service is configured o be failing when processing events. "
+             See "app.service.invoices.failing" or "SERVICE_INVOICES_FAILING" environment var.
+          """
+      );
+    }
+    return this.serviceIsFailing;
   }
 }
