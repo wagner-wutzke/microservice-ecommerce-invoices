@@ -24,7 +24,7 @@ public class InvoiceConsumer {
   private final InvoiceService invoiceService;
 
   @KafkaHandler
-  public void handlePaymentCompleted(final PaymentCompletedEvent event) {
+  public void handle(final PaymentCompletedEvent event) {
     log.debug(
         ">> Processing PaymentCompletedEvent event sent from {}. Event id {}",
         event.origin(),
@@ -33,7 +33,7 @@ public class InvoiceConsumer {
   }
 
   @KafkaHandler
-  public void handleShipmentFailed(final ShipmentFailedEvent event) {
+  public void handle(final ShipmentFailedEvent event) {
     log.debug(
         ">> Processing ShipmentFailedEvent event sent from {}. Event id {}",
         event.origin(),
@@ -43,6 +43,6 @@ public class InvoiceConsumer {
 
   @KafkaHandler(isDefault = true)
   public void handleUnknown(final Object event) {
-    log.debug(">> Received an unmapped event of type {}", event.getClass().getSimpleName());
+    //log.debug(">> Received an unmapped event of type {}", event.getClass().getSimpleName());
   }
 }

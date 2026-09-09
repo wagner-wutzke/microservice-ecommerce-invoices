@@ -145,7 +145,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             orderDTO.getId().toString(),
             orderDTO,
             Instant.now(),
-            "Invoice generation failed: " + reason,
+            reason,
             ORIGIN_SERVICE));
   }
 

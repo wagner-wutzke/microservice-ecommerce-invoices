@@ -18,7 +18,7 @@ class InvoiceConsumerTest {
   void processesCompletedOrder() {
     var order = TestFixtures.order();
     var payment = TestFixtures.payment();
-    consumer.handlePaymentCompleted(
+    consumer.handle(
         new PaymentCompletedEvent(
             UUID.randomUUID(), "tx", order, payment, Instant.now(), "orders"));
     verify(service).process(order);
@@ -27,7 +27,7 @@ class InvoiceConsumerTest {
   @Test
   void compensatesFailedShipmentAndIgnoresUnknownEvents() {
     var order = TestFixtures.order();
-    consumer.handleShipmentFailed(
+    consumer.handle(
         new ShipmentFailedEvent(UUID.randomUUID(), "tx", order, "failed", Instant.now(), "orders"));
     verify(service).compensate(order, "failed");
 
