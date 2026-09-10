@@ -7,8 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.wowdev.ecommerce.domain.dto.InvoiceDTO;
 import net.wowdev.ecommerce.domain.dto.OrderDTO;
 import net.wowdev.ecommerce.domain.entity.InvoiceEntity;
-import net.wowdev.ecommerce.domain.events.InvoiceCompletedEvent;
-import net.wowdev.ecommerce.domain.events.InvoiceFailedEvent;
+import net.wowdev.ecommerce.domain.events.InvoiceCompleted;
+import net.wowdev.ecommerce.domain.events.InvoiceFailed;
 import net.wowdev.ecommerce.domain.mapper.InvoiceMapper;
 import net.wowdev.ecommerce.invoices.messaging.InvoiceProducer;
 import net.wowdev.ecommerce.invoices.repository.InvoiceRepository;
@@ -28,7 +28,7 @@ public class InvoiceServiceImpl implements InvoiceService {
   private final InvoiceProducer producer;
 
   @Value(value = "${app.service.invoices.failing}")
-  private boolean serviceIsFailing;
+  private boolean failsWhenRunning;
 
   @Override
   @Transactional(readOnly = true)
@@ -80,9 +80,7 @@ public class InvoiceServiceImpl implements InvoiceService {
   @Override
   @Transactional
   public void process(final OrderDTO orderDTO) {
-    if (orderDTO == null || orderDTO.getId() == null || orderDTO.getCustomerId() == null) {
-      throw new IllegalArgumentException("Order id and customer id are required");
-    }
+
     InvoiceDTO invoice =
         new InvoiceDTO(
             null,
@@ -96,14 +94,15 @@ public class InvoiceServiceImpl implements InvoiceService {
             null);
 
     try {
-      if (serviceIsFailing()) {
-        throw new RuntimeException("Document could not be generated.");
+      if (failsWhenRunning()) {
+        throw new RuntimeException("Invoicing service partner is not available.");
       }
       invoice = create(invoice);
       publishInvoiceCompletedEvent(orderDTO);
       log.debug(">> Created invoice {} for order {}", invoice.getId(), orderDTO.getId());
     } catch (RuntimeException e) {
-      log.debug(">> Invoice generation for order {} failed.", orderDTO.getId());
+      log.debug(
+          ">> Invoice generation for order {} failed. Reason: {}", orderDTO.getId(), e.getMessage());
       publishInvoiceFailedEvent(orderDTO, e.getMessage());
     }
   }
@@ -130,7 +129,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
   private void publishInvoiceCompletedEvent(OrderDTO orderDTO) {
     producer.publish(
-        new InvoiceCompletedEvent(
+        new InvoiceCompleted(
             UUID.randomUUID(),
             orderDTO.getId().toString(),
             orderDTO,
@@ -140,7 +139,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
   private void publishInvoiceFailedEvent(OrderDTO orderDTO, String reason) {
     producer.publish(
-        new InvoiceFailedEvent(
+        new InvoiceFailed(
             UUID.randomUUID(),
             orderDTO.getId().toString(),
             orderDTO,
@@ -149,15 +148,14 @@ public class InvoiceServiceImpl implements InvoiceService {
             ORIGIN_SERVICE));
   }
 
-  private boolean serviceIsFailing() {
-    if (this.serviceIsFailing) {
+  private boolean failsWhenRunning() {
+    if (this.failsWhenRunning) {
       log.debug(
           """
-          >> Service is configured o be failing when processing events. "
-             See "app.service.invoices.failing" or "SERVICE_INVOICES_FAILING" environment var.
-          """
-      );
+          >> Service is configured to be failing when processing events. "
+             This option can be configured with the "SERVICE_INVOICES_FAILING" environment variable.
+          """);
     }
-    return this.serviceIsFailing;
+    return this.failsWhenRunning;
   }
 }

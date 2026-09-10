@@ -2,8 +2,8 @@ package net.wowdev.ecommerce.invoices.messaging;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.wowdev.ecommerce.domain.events.InvoiceCompletedEvent;
-import net.wowdev.ecommerce.domain.events.InvoiceFailedEvent;
+import net.wowdev.ecommerce.domain.events.InvoiceCompleted;
+import net.wowdev.ecommerce.domain.events.InvoiceFailed;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -21,14 +21,14 @@ public class InvoiceProducer {
   private String topic;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  public void publish(final InvoiceCompletedEvent event) {
-    log.debug(">> Publishing InvoiceCompletedEvent: {}", event.eventId());
+  public void publish(final InvoiceCompleted event) {
+    log.debug(">> Publishing InvoiceCompleted event: {}", event.eventId());
     kafkaTemplate.send(topic, event.eventId().toString(), event);
   }
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-  public void publish(final InvoiceFailedEvent event) {
-    log.debug(">> Publishing InvoiceFailedEvent: {}", event.eventId());
+  public void publish(final InvoiceFailed event) {
+    log.debug(">> Publishing InvoiceFailed event: {}", event.eventId());
     kafkaTemplate.send(topic, event.eventId().toString(), event);
   }
 }

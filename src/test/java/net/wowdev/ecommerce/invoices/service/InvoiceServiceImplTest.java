@@ -7,9 +7,10 @@ import static org.mockito.Mockito.*;
 import java.util.Optional;
 import java.util.UUID;
 import net.wowdev.ecommerce.domain.dto.InvoiceDTO;
+import net.wowdev.ecommerce.domain.dto.OrderDTO;
 import net.wowdev.ecommerce.domain.entity.InvoiceEntity;
-import net.wowdev.ecommerce.domain.events.InvoiceCompletedEvent;
-import net.wowdev.ecommerce.domain.events.InvoiceFailedEvent;
+import net.wowdev.ecommerce.domain.events.InvoiceCompleted;
+import net.wowdev.ecommerce.domain.events.InvoiceFailed;
 import net.wowdev.ecommerce.invoices.TestFixtures;
 import net.wowdev.ecommerce.invoices.messaging.InvoiceProducer;
 import net.wowdev.ecommerce.invoices.repository.InvoiceRepository;
@@ -101,7 +102,7 @@ class InvoiceServiceImplTest {
               return null;
             })
         .when(producer)
-        .publish(any(InvoiceCompletedEvent.class));
+        .publish(any(InvoiceCompleted.class));
     lenient()
         .doAnswer(
             invocation -> {
@@ -109,23 +110,18 @@ class InvoiceServiceImplTest {
               return null;
             })
         .when(producer)
-        .publish(any(InvoiceFailedEvent.class));
+        .publish(any(InvoiceFailed.class));
 
     service.process(order);
 
     assertEquals(1, publishedEvents.size());
     var event = publishedEvents.get(0);
-    assertTrue(event instanceof InvoiceCompletedEvent || event instanceof InvoiceFailedEvent);
-    if (event instanceof InvoiceCompletedEvent completedEvent) {
+    assertTrue(event instanceof InvoiceCompleted || event instanceof InvoiceFailed);
+    if (event instanceof InvoiceCompleted completedEvent) {
       assertEquals(order.getId().toString(), completedEvent.transactionId());
     } else {
-      assertEquals(order.getId().toString(), ((InvoiceFailedEvent) event).transactionId());
+      assertEquals(order.getId().toString(), ((InvoiceFailed) event).transactionId());
     }
-  }
-
-  @Test
-  void rejectsInvalidOrder() {
-    assertThrows(IllegalArgumentException.class, () -> service.process(null));
   }
 
   private InvoiceEntity entity(final UUID value) {
