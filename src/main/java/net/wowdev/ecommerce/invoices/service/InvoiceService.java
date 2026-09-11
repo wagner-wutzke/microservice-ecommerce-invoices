@@ -7,6 +7,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface InvoiceService {
+
+  public static final String ORIGIN_SERVICE = "INVOICES-SERVICE";
+
   InvoiceDTO findById(UUID id);
 
   Page<InvoiceDTO> findAll(Pageable pageable);

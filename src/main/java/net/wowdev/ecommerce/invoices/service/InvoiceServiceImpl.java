@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class InvoiceServiceImpl implements InvoiceService {
 
-  private static final String ORIGIN_SERVICE = "INVOICES-SERVICE";
   private final InvoiceRepository repository;
   private final InvoiceProducer producer;
 

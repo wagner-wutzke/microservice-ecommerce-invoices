@@ -17,11 +17,13 @@ import net.wowdev.ecommerce.invoices.repository.InvoiceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class InvoiceServiceImplTest {
@@ -68,6 +70,39 @@ class InvoiceServiceImplTest {
   }
 
   @Test
+  void rejectsNullInvoice() {
+    assertThrows(IllegalArgumentException.class, () -> service.create(null));
+  }
+
+  @Test
+  void rejectsInvoiceWithoutOrder() {
+    InvoiceDTO invoice = TestFixtures.invoice(id);
+    invoice.setOrderId(null);
+    assertThrows(IllegalArgumentException.class, () -> service.create(invoice));
+  }
+
+  @Test
+  void rejectsInvoiceWithoutCustomer() {
+    InvoiceDTO invoice = TestFixtures.invoice(id);
+    invoice.setCustomerId(null);
+    assertThrows(IllegalArgumentException.class, () -> service.create(invoice));
+  }
+
+  @Test
+  void rejectsInvoiceWithoutInvoiceNumber() {
+    InvoiceDTO invoice = TestFixtures.invoice(id);
+    invoice.setInvoiceNumber(null);
+    assertThrows(IllegalArgumentException.class, () -> service.create(invoice));
+  }
+
+  @Test
+  void rejectsInvoiceWithBlankInvoiceNumber() {
+    InvoiceDTO invoice = TestFixtures.invoice(id);
+    invoice.setInvoiceNumber("   ");
+    assertThrows(IllegalArgumentException.class, () -> service.create(invoice));
+  }
+
+  @Test
   void updatesInvoice() {
     InvoiceEntity current = entity(id);
     when(repository.findById(id)).thenReturn(Optional.of(current));
@@ -75,6 +110,14 @@ class InvoiceServiceImplTest {
     InvoiceDTO request = TestFixtures.invoice(id);
     request.setDelivered(true);
     assertTrue(service.update(id, request).isDelivered());
+  }
+
+  @Test
+  void rejectsUpdateOfMissingInvoice() {
+    when(repository.findById(id)).thenReturn(Optional.empty());
+    assertThrows(
+        InvoiceNotFoundException.class, () -> service.update(id, TestFixtures.invoice(id)));
+    verify(repository, never()).save(any(InvoiceEntity.class));
   }
 
   @Test
@@ -122,6 +165,47 @@ class InvoiceServiceImplTest {
     } else {
       assertEquals(order.getId().toString(), ((InvoiceFailed) event).transactionId());
     }
+  }
+
+  @Test
+  void publishesFailureWhenProcessingIsConfiguredToFail() {
+    ReflectionTestUtils.setField(service, "failsWhenRunning", true);
+    OrderDTO order = TestFixtures.order();
+
+    service.process(order);
+
+    ArgumentCaptor<InvoiceFailed> captor = ArgumentCaptor.forClass(InvoiceFailed.class);
+    verify(producer).publish(captor.capture());
+    assertEquals(order.getId().toString(), captor.getValue().transactionId());
+    assertEquals("Invoicing service partner is not available.", captor.getValue().reason());
+    verify(repository, never()).save(any(InvoiceEntity.class));
+  }
+
+  @Test
+  void publishesFailureWhenInvoiceCreationFails() {
+    RuntimeException failure = new RuntimeException("database unavailable");
+    when(repository.save(any(InvoiceEntity.class))).thenThrow(failure);
+    OrderDTO order = TestFixtures.order();
+
+    service.process(order);
+
+    ArgumentCaptor<InvoiceFailed> captor = ArgumentCaptor.forClass(InvoiceFailed.class);
+    verify(producer).publish(captor.capture());
+    assertEquals("database unavailable", captor.getValue().reason());
+  }
+
+  @Test
+  void compensatesInvoiceAndPublishesFailure() {
+    OrderDTO order = TestFixtures.order();
+
+    service.compensate(order, "payment rejected");
+
+    verify(repository).deleteByOrderId(order.getId());
+    ArgumentCaptor<InvoiceFailed> captor = ArgumentCaptor.forClass(InvoiceFailed.class);
+    verify(producer).publish(captor.capture());
+    assertEquals(order.getId().toString(), captor.getValue().transactionId());
+    assertEquals("payment rejected", captor.getValue().reason());
+    assertEquals(InvoiceService.ORIGIN_SERVICE, captor.getValue().origin());
   }
 
   private InvoiceEntity entity(final UUID value) {
